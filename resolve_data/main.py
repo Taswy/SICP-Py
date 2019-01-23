@@ -1,4 +1,5 @@
 # code=utf-8
+import re
 
 class Point(object):
     def __init__(self, id, x, y):
@@ -29,6 +30,8 @@ class LineLoop(object):
         return ''.join(str_list)
 
 class Processer(object):
+    start_line = "Lines & Boundaries"
+    end_line = "Surfaces and physical entities"
     def __init__(self):
         self.points = {}
         self.lines = {}
@@ -58,3 +61,35 @@ class Processer(object):
         for line_loop in self.line_loops:
             print(line_loop.tostring(self))
             
+    def read_obj(self, text_line):
+        class_names = ["Point", "Line", "Line Loop"]
+        [obj_str, data_str] = text_line.strip().split("=")
+        obj_type = None
+        for class_name in class_names:
+            if class_name in obj_str:
+                obj_type = class_name
+        if not obj_type:
+            return None
+        pattern = re.compile(r'[(](.*?)[)]')
+        obj_id = int(re.findall(pattern, obj_str))
+        return obj_type, obj_id, data_str
+
+    def set_obj(self, text_line):
+        obj_context = self.read_obj(text_line)
+        if obj_context is None:
+            return
+        (obj_type, obj_id, data_str) = obj_context
+        pattern = re.compile(r'{.*?}')
+        data_content_list = list(map(lambda s: s.strip(), re.findall(pattern, data_str).split(',')))
+        if obj_type == "Point":
+            (x, y) = tuple(map(float, data_content_list[0:2]))
+            point = Point(obj_id, x, y)
+            self.set_point(point)
+        elif obj_type == "Line":
+            (p1, p2) = tuple(map(int, data_content_list))
+            line = Line(obj_id, p1, p2)
+            self.set_line(line)
+        else:
+            line_list = list(map(int, data_content_list))
+            line_loop = LineLoop(line_list)
+            self.set_line_loop(line_loop)
